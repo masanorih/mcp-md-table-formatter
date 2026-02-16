@@ -2,7 +2,7 @@
 
 import textwrap
 
-from server import display_width, format_md_table, pad
+from server import display_width, format_md_table, format_md_tables_in_text, pad
 
 
 class TestDisplayWidth:
@@ -78,3 +78,86 @@ class TestFormatMdTable:
             | ----- | --- |
             | Alice | 30  |""")
         assert format_md_table(input_text) == expected
+
+
+class TestFormatMdTablesInText:
+    def test_single_table_in_document(self):
+        input_text = textwrap.dedent("""\
+            # Title
+
+            Some text.
+
+            | Name | Age |
+            |---|---|
+            | Alice | 30 |
+
+            More text.""")
+        expected = textwrap.dedent("""\
+            # Title
+
+            Some text.
+
+            | Name  | Age |
+            | ----- | --- |
+            | Alice | 30  |
+
+            More text.""")
+        assert format_md_tables_in_text(input_text) == expected
+
+    def test_multiple_tables_in_document(self):
+        input_text = textwrap.dedent("""\
+            # Doc
+
+            | A | B |
+            |---|---|
+            | C | D |
+
+            Paragraph.
+
+            | 名前 | 値 |
+            |---|---|
+            | X | Y |""")
+        expected = textwrap.dedent("""\
+            # Doc
+
+            | A | B |
+            | - | - |
+            | C | D |
+
+            Paragraph.
+
+            | 名前 | 値 |
+            | ---- | -- |
+            | X    | Y  |""")
+        assert format_md_tables_in_text(input_text) == expected
+
+    def test_no_tables(self):
+        input_text = "# Title\n\nJust text.\n"
+        assert format_md_tables_in_text(input_text) == input_text
+
+    def test_table_inside_code_block_untouched(self):
+        input_text = textwrap.dedent("""\
+            # Doc
+
+            ```
+            | A | B |
+            |---|---|
+            | C | D |
+            ```
+
+            | E | F |
+            |---|---|
+            | G | H |""")
+        expected = textwrap.dedent("""\
+            # Doc
+
+            ```
+            | A | B |
+            |---|---|
+            | C | D |
+            ```
+
+            | E | F |
+            | - | - |
+            | G | H |""")
+        assert format_md_tables_in_text(input_text) == expected

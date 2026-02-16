@@ -1,5 +1,6 @@
 """MCP server for formatting Markdown tables with CJK-aware column alignment."""
 
+import pathlib
 import re
 import unicodedata
 
@@ -61,6 +62,51 @@ def format_md_table(text: str) -> str:
     return "\n".join(result_lines)
 
 
+def format_md_tables_in_text(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    result: list[str] = []
+    i = 0
+    in_code_block = False
+    separator_re = re.compile(r"^\|[\s\-:|]+(\|[\s\-:|]+)+\|?\s*$")
+    pipe_re = re.compile(r"^\|.+\|")
+
+    while i < len(lines):
+        stripped = lines[i].rstrip("\n")
+        if stripped.lstrip().startswith("```"):
+            in_code_block = not in_code_block
+            result.append(lines[i])
+            i += 1
+            continue
+
+        if in_code_block or not pipe_re.match(stripped.strip()):
+            result.append(lines[i])
+            i += 1
+            continue
+
+        # Collect consecutive pipe lines (potential table)
+        table_lines: list[str] = []
+        j = i
+        while j < len(lines):
+            s = lines[j].rstrip("\n").strip()
+            if pipe_re.match(s) or separator_re.match(s):
+                table_lines.append(s)
+                j += 1
+            else:
+                break
+
+        # Check if it has a separator (i.e., it's a real table)
+        has_separator = any(separator_re.match(line) for line in table_lines)
+        if has_separator and len(table_lines) >= 2:
+            formatted = format_md_table("\n".join(table_lines))
+            result.append(formatted + "\n" if lines[j - 1].endswith("\n") else formatted)
+            i = j
+        else:
+            result.append(lines[i])
+            i += 1
+
+    return "".join(result)
+
+
 mcp = FastMCP("md-table-formatter")
 
 
@@ -75,6 +121,30 @@ def format_markdown_table(table_text: str) -> str:
         The formatted Markdown table with aligned columns.
     """
     return format_md_table(table_text)
+
+
+@mcp.tool()
+def format_markdown_file(file_path: str) -> str:
+    """Format all Markdown tables in a file with CJK-aware column alignment.
+
+    Reads the file, formats all Markdown tables found in it, and writes
+    the result back to the file. Tables inside code blocks are left untouched.
+
+    Args:
+        file_path: Absolute path to the Markdown file to format.
+
+    Returns:
+        A message indicating the result.
+    """
+    path = pathlib.Path(file_path).expanduser()
+    if not path.is_file():
+        return f"Error: file not found: {file_path}"
+    content = path.read_text(encoding="utf-8")
+    formatted = format_md_tables_in_text(content)
+    if content == formatted:
+        return f"No tables to format in {file_path}"
+    path.write_text(formatted, encoding="utf-8")
+    return f"Formatted tables in {file_path}"
 
 
 def main():
