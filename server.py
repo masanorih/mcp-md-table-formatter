@@ -17,7 +17,6 @@ def display_width(s: str) -> int:
 
     Args:
         s: 対象文字列
-
     Returns:
         表示幅（int）
     """
@@ -34,7 +33,6 @@ def pad(s: str, width: int) -> str:
     Args:
         s: 対象文字列
         width: 目標表示幅
-
     Returns:
         右側にスペースを追加した文字列
     """
@@ -49,7 +47,6 @@ def format_md_table(text: str) -> str:
 
     Args:
         text: Markdown テーブル文字列
-
     Returns:
         整形済みテーブル文字列
     """
@@ -106,7 +103,6 @@ def format_md_tables_in_text(text: str) -> str:
 
     Args:
         text: Markdown ドキュメント全体の文字列
-
     Returns:
         テーブル部分のみ整形された文字列
     """
@@ -167,7 +163,6 @@ def format_markdown_table(table_text: str) -> str:
 
     Args:
         table_text: パイプ区切りの Markdown テーブル文字列
-
     Returns:
         整形済みテーブル文字列
     """
@@ -182,7 +177,6 @@ def format_markdown_file(file_path: str) -> str:
 
     Args:
         file_path: Markdown ファイルの絶対パス
-
     Returns:
         処理結果のメッセージ
     """
