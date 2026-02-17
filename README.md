@@ -14,10 +14,10 @@ Markdown テーブルの列幅を、全角 (CJK) / 半角文字の表示幅を�
 ## インストール
 
 ```bash
-claude mcp add -s user md-table-formatter -- uvx --from /path/to/md-table-formatter md-table-formatter
+claude mcp add -s user md-table-formatter -- uvx --from /path/to/mcp-md-table-formatter md-table-formatter
 ```
 
-`/path/to/md-table-formatter` はこのリポジトリのクローン先パスに置き換えること。
+`/path/to/mcp-md-table-formatter` はこのリポジトリのクローン先パスに置き換えること。
 
 ## テスト
 
