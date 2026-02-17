@@ -48,9 +48,10 @@ uv run --group dev pytest -v
 
 ## MCP ツール
 
-| ツール名               | 引数       | 説明                                       |
-| ---------------------- | ---------- | ------------------------------------------ |
-| format_markdown_table  | table_text | Markdown テーブル文字列を整形して返す      |
+| ツール名              | 引数       | 説明                                              |
+| --------------------- | ---------- | ------------------------------------------------- |
+| format_markdown_table | table_text | Markdown テーブル文字列を整形して返す             |
+| format_markdown_file  | file_path  | Markdown ファイル内の全テーブルを整形して書き戻す |
 
 ## Claude Code での利用
 
@@ -59,5 +60,5 @@ uv run --group dev pytest -v
 ```markdown
 ### Markdown Table Formatting
 
-- Markdown の table を出力する際は、必ず format_markdown_table ツールで整形してから出力する
+- Markdown ファイルにテーブルを書き込んだ際は、format_markdown_file ツールで整形する
 ```
