@@ -156,20 +156,6 @@ mcp = FastMCP("md-table-formatter")
 
 
 @mcp.tool()
-def format_markdown_table(table_text: str) -> str:
-    """Markdown テーブル文字列を整形する
-
-    全角/半角文字の表示幅を考慮して列幅を揃える。
-
-    Args:
-        table_text: パイプ区切りの Markdown テーブル文字列
-    Returns:
-        整形済みテーブル文字列
-    """
-    return format_md_table(table_text)
-
-
-@mcp.tool()
 def format_markdown_file(file_path: str) -> str:
     """Markdown ファイル内の全テーブルを整形する
 

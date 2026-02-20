@@ -34,10 +34,9 @@ uv run --group dev pytest -v
 
 ## MCP ツール
 
-| ツール名              | 引数       | 説明                                              |
-| --------------------- | ---------- | ------------------------------------------------- |
-| format_markdown_table | table_text | Markdown テーブル文字列を整形して返す             |
-| format_markdown_file  | file_path  | Markdown ファイル内の全テーブルを整形して書き戻す |
+| ツール名             | 引数      | 説明                                              |
+| -------------------- | --------- | ------------------------------------------------- |
+| format_markdown_file | file_path | Markdown ファイル内の全テーブルを整形して書き戻す |
 
 ## Claude Code での利用
 
