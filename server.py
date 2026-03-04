@@ -157,16 +157,19 @@ mcp = FastMCP("md-table-formatter")
 
 @mcp.tool()
 def format_markdown_file(file_path: str) -> str:
-    """Markdown ファイル内の全テーブルを整形する
+    """Markdown (.md) ファイル内の全テーブルを整形する
 
-    ファイルを読み込み、コードブロック外の全テーブルを整形して書き戻す。
+    .md ファイルを読み込み、コードブロック外の全テーブルを整形して書き戻す。
+    .md 以外の拡張子のファイルはエラーを返す。
 
     Args:
-        file_path: Markdown ファイルの絶対パス
+        file_path: Markdown ファイルの絶対パス（.md 拡張子のみ対応）
     Returns:
         処理結果のメッセージ
     """
     path = pathlib.Path(file_path).expanduser()
+    if path.suffix != ".md":
+        return f"Error: only .md files are supported: {file_path}"
     if not path.is_file():
         return f"Error: file not found: {file_path}"
     content = path.read_text(encoding="utf-8")

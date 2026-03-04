@@ -1,8 +1,10 @@
 """Tests for Markdown table formatter core logic."""
 
 import textwrap
+import tempfile
+import pathlib
 
-from server import display_width, format_md_table, format_md_tables_in_text, pad
+from server import display_width, format_md_table, format_md_tables_in_text, format_markdown_file, pad
 
 
 class TestDisplayWidth:
@@ -161,3 +163,34 @@ class TestFormatMdTablesInText:
             | - | - |
             | G | H |""")
         assert format_md_tables_in_text(input_text) == expected
+
+
+class TestFormatMarkdownFile:
+    def test_rejects_rst_file(self):
+        with tempfile.NamedTemporaryFile(suffix=".rst", delete=False) as f:
+            path = pathlib.Path(f.name)
+        try:
+            result = format_markdown_file(str(path))
+            assert "Error" in result
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_rejects_txt_file(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
+            path = pathlib.Path(f.name)
+        try:
+            result = format_markdown_file(str(path))
+            assert "Error" in result
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_accepts_md_file(self):
+        content = "| A | B |\n|---|---|\n| C | D |\n"
+        with tempfile.NamedTemporaryFile(suffix=".md", mode="w", delete=False, encoding="utf-8") as f:
+            f.write(content)
+            path = pathlib.Path(f.name)
+        try:
+            result = format_markdown_file(str(path))
+            assert "Error" not in result
+        finally:
+            path.unlink(missing_ok=True)
