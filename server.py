@@ -10,6 +10,48 @@ import unicodedata
 from mcp.server.fastmcp import FastMCP
 
 
+AMBIGUOUS_CHAR_REPLACEMENTS = {
+    "→": "->",
+    "←": "<-",
+    "↑": "^",
+    "↓": "v",
+    "⇒": "=>",
+    "⇐": "<=",
+    "×": "x",
+    "±": "+/-",
+    "÷": "/",
+    "≤": "<=",
+    "≥": ">=",
+    "≠": "!=",
+    "≈": "~=",
+    "≡": "==",
+    "…": "...",
+    "—": "--",
+    "–": "-",
+    "“": '"',
+    "”": '"',
+    "‘": "'",
+    "’": "'",
+    "※": "*",
+}
+
+
+def replace_ambiguous_chars(s: str) -> str:
+    """East Asian Ambiguous な記号を ASCII 等価物に置換する
+
+    フォントによって幅が変動する記号（矢印、乗算記号など）を
+    幅が安定した ASCII シーケンスへ置き換える。
+
+    Args:
+        s: 対象文字列
+    Returns:
+        置換後の文字列
+    """
+    for src, dst in AMBIGUOUS_CHAR_REPLACEMENTS.items():
+        s = s.replace(src, dst)
+    return s
+
+
 def display_width(s: str) -> int:
     """文字列の表示幅を計算する
 
@@ -70,7 +112,7 @@ def format_md_table(text: str) -> str:
         if i == separator_idx:
             parsed_rows.append([])
             continue
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        cells = [replace_ambiguous_chars(c.strip()) for c in line.strip().strip("|").split("|")]
         parsed_rows.append(cells)
 
     # 各列の最大表示幅を算出

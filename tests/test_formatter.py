@@ -4,7 +4,14 @@ import textwrap
 import tempfile
 import pathlib
 
-from server import display_width, format_md_table, format_md_tables_in_text, format_markdown_file, pad
+from server import (
+    display_width,
+    format_md_table,
+    format_md_tables_in_text,
+    format_markdown_file,
+    pad,
+    replace_ambiguous_chars,
+)
 
 
 class TestDisplayWidth:
@@ -30,6 +37,86 @@ class TestPad:
 
     def test_exact_width(self):
         assert pad("hello", 5) == "hello"
+
+
+class TestReplaceAmbiguousChars:
+    def test_right_arrow(self):
+        assert replace_ambiguous_chars("→") == "->"
+
+    def test_left_arrow(self):
+        assert replace_ambiguous_chars("←") == "<-"
+
+    def test_up_arrow(self):
+        assert replace_ambiguous_chars("↑") == "^"
+
+    def test_down_arrow(self):
+        assert replace_ambiguous_chars("↓") == "v"
+
+    def test_double_right_arrow(self):
+        assert replace_ambiguous_chars("⇒") == "=>"
+
+    def test_double_left_arrow(self):
+        assert replace_ambiguous_chars("⇐") == "<="
+
+    def test_multiplication(self):
+        assert replace_ambiguous_chars("×") == "x"
+
+    def test_plus_minus(self):
+        assert replace_ambiguous_chars("±") == "+/-"
+
+    def test_division(self):
+        assert replace_ambiguous_chars("÷") == "/"
+
+    def test_less_equal(self):
+        assert replace_ambiguous_chars("≤") == "<="
+
+    def test_greater_equal(self):
+        assert replace_ambiguous_chars("≥") == ">="
+
+    def test_not_equal(self):
+        assert replace_ambiguous_chars("≠") == "!="
+
+    def test_approx_equal(self):
+        assert replace_ambiguous_chars("≈") == "~="
+
+    def test_identical(self):
+        assert replace_ambiguous_chars("≡") == "=="
+
+    def test_ellipsis(self):
+        assert replace_ambiguous_chars("…") == "..."
+
+    def test_em_dash(self):
+        assert replace_ambiguous_chars("—") == "--"
+
+    def test_en_dash(self):
+        assert replace_ambiguous_chars("–") == "-"
+
+    def test_left_double_quote(self):
+        assert replace_ambiguous_chars("“") == '"'
+
+    def test_right_double_quote(self):
+        assert replace_ambiguous_chars("”") == '"'
+
+    def test_left_single_quote(self):
+        assert replace_ambiguous_chars("‘") == "'"
+
+    def test_right_single_quote(self):
+        assert replace_ambiguous_chars("’") == "'"
+
+    def test_reference_mark(self):
+        assert replace_ambiguous_chars("※") == "*"
+
+    def test_mixed_text(self):
+        assert replace_ambiguous_chars("a → b × c") == "a -> b x c"
+
+    def test_no_ambiguous_chars(self):
+        assert replace_ambiguous_chars("hello world") == "hello world"
+
+    def test_cjk_unchanged(self):
+        assert replace_ambiguous_chars("日本語") == "日本語"
+
+    def test_empty(self):
+        assert replace_ambiguous_chars("") == ""
 
 
 class TestFormatMdTable:
@@ -69,6 +156,28 @@ class TestFormatMdTable:
     def test_invalid_input_returns_as_is(self):
         input_text = "This is not a table"
         assert format_md_table(input_text) == input_text
+
+    def test_replaces_ambiguous_chars_in_cells(self):
+        input_text = textwrap.dedent("""\
+            | A | B |
+            |---|---|
+            | foo→bar | 3×4 |""")
+        expected = textwrap.dedent("""\
+            | A        | B   |
+            | -------- | --- |
+            | foo->bar | 3x4 |""")
+        assert format_md_table(input_text) == expected
+
+    def test_replaces_ambiguous_chars_in_header(self):
+        input_text = textwrap.dedent("""\
+            | A→B | C |
+            |---|---|
+            | x | y |""")
+        expected = textwrap.dedent("""\
+            | A->B | C |
+            | ---- | - |
+            | x    | y |""")
+        assert format_md_table(input_text) == expected
 
     def test_strips_cell_whitespace(self):
         input_text = textwrap.dedent("""\
@@ -136,6 +245,25 @@ class TestFormatMdTablesInText:
     def test_no_tables(self):
         input_text = "# Title\n\nJust text.\n"
         assert format_md_tables_in_text(input_text) == input_text
+
+    def test_ambiguous_chars_outside_tables_unchanged(self):
+        input_text = textwrap.dedent("""\
+            # Title
+
+            Arrow → here in paragraph.
+
+            | A | B |
+            |---|---|
+            | foo→bar | bar |""")
+        expected = textwrap.dedent("""\
+            # Title
+
+            Arrow → here in paragraph.
+
+            | A        | B   |
+            | -------- | --- |
+            | foo->bar | bar |""")
+        assert format_md_tables_in_text(input_text) == expected
 
     def test_table_inside_code_block_untouched(self):
         input_text = textwrap.dedent("""\
