@@ -27,6 +27,28 @@ class TestDisplayWidth:
     def test_empty(self):
         assert display_width("") == 0
 
+    def test_ambiguous_default_width_1(self):
+        assert display_width("×") == 1
+        assert display_width("※") == 1
+        assert display_width("→") == 1
+
+    def test_ambiguous_cjk_mode_width_2(self):
+        assert display_width("×", cjk_mode=True) == 2
+        assert display_width("※", cjk_mode=True) == 2
+        assert display_width("→", cjk_mode=True) == 2
+
+    def test_narrow_cjk_mode_still_width_1(self):
+        assert display_width("A", cjk_mode=True) == 1
+        assert display_width("hello", cjk_mode=True) == 5
+
+    def test_wide_cjk_mode_still_width_2(self):
+        assert display_width("日", cjk_mode=True) == 2
+        assert display_width("日本語", cjk_mode=True) == 6
+
+    def test_mixed_cjk_mode(self):
+        # × (A=2) + 口 (W=2) + a (Na=1) = 5
+        assert display_width("×口a", cjk_mode=True) == 5
+
 
 class TestPad:
     def test_ascii_padding(self):
@@ -37,6 +59,14 @@ class TestPad:
 
     def test_exact_width(self):
         assert pad("hello", 5) == "hello"
+
+    def test_cjk_mode_pads_ambiguous_as_width_2(self):
+        # × is treated as width 2, target 6 -> 4 spaces padding
+        assert pad("×", 6, cjk_mode=True) == "×    "
+
+    def test_cjk_mode_default_pads_ambiguous_as_width_1(self):
+        # × is treated as width 1, target 6 -> 5 spaces padding
+        assert pad("×", 6) == "×     "
 
 
 class TestReplaceAmbiguousChars:
@@ -190,6 +220,63 @@ class TestFormatMdTable:
             | Alice | 30  |""")
         assert format_md_table(input_text) == expected
 
+    def test_cjk_mode_preserves_multiplication_sign(self):
+        input_text = textwrap.dedent("""\
+            | A | B |
+            |---|---|
+            | × | 口 |""")
+        result = format_md_table(input_text, cjk_mode=True)
+        assert "×" in result
+        # Ensure × did not get replaced with x in the cell
+        assert "| x " not in result
+
+    def test_cjk_mode_preserves_reference_mark(self):
+        input_text = textwrap.dedent("""\
+            | id | note |
+            |---|---|
+            | 1 | ※注 |""")
+        result = format_md_table(input_text, cjk_mode=True)
+        assert "※" in result
+        assert "*" not in result
+
+    def test_cjk_mode_aligns_ambiguous_as_width_2(self):
+        # In cjk_mode, × (A) is width 2, 口 (W) is width 2
+        # col1: max("A"=1, "×"=2) = 2 -> "A " / "×"
+        # col2: max("B"=1, "口"=2) = 2 -> "B " / "口"
+        input_text = textwrap.dedent("""\
+            | A | B |
+            |---|---|
+            | × | 口 |""")
+        expected = textwrap.dedent("""\
+            | A  | B  |
+            | -- | -- |
+            | ×  | 口 |""")
+        # Note: pad("×", 2, cjk_mode=True) = "×" + " " * (2-2) = "×"
+        # But "| " + "×" + " | " = "| × | " - actually format is "| " + part + " | "
+        # so cell "×" becomes "| × |" with no trailing pad - hmm let me reconsider
+        # Actually pad("×", 2, cjk_mode=True) returns "×" (no padding needed since width already 2)
+        # Then format becomes "| × | 口 |"
+        # While "| A  | B  |" has "A " padded to width 2
+        # These differ in char count but match in CJK visual width
+        expected = textwrap.dedent("""\
+            | A  | B  |
+            | -- | -- |
+            | × | 口 |""")
+        assert format_md_table(input_text, cjk_mode=True) == expected
+
+    def test_cjk_mode_false_still_replaces(self):
+        # Explicit cjk_mode=False should behave identically to omitting the arg
+        input_text = textwrap.dedent("""\
+            | A | B |
+            |---|---|
+            | × | 口 |""")
+        expected_default = format_md_table(input_text)
+        expected_explicit = format_md_table(input_text, cjk_mode=False)
+        assert expected_default == expected_explicit
+        # × should have been replaced with x in the explicit form
+        assert "x" in expected_explicit
+        assert "×" not in expected_explicit
+
 
 class TestFormatMdTablesInText:
     def test_single_table_in_document(self):
@@ -292,6 +379,32 @@ class TestFormatMdTablesInText:
             | G | H |""")
         assert format_md_tables_in_text(input_text) == expected
 
+    def test_cjk_mode_preserves_in_document(self):
+        input_text = textwrap.dedent("""\
+            # Doc
+
+            | char | meaning |
+            |---|---|
+            | × | corrupted |""")
+        result = format_md_tables_in_text(input_text, cjk_mode=True)
+        assert "×" in result
+        # × should not have been replaced with x in the table cell
+        assert "| x " not in result
+
+    def test_cjk_mode_default_replaces_in_document(self):
+        input_text = textwrap.dedent("""\
+            # Doc
+
+            | char | meaning |
+            |---|---|
+            | × | corrupted |""")
+        # Explicit cjk_mode=False matches omission
+        assert format_md_tables_in_text(input_text, cjk_mode=False) == format_md_tables_in_text(input_text)
+        # And × is replaced
+        result = format_md_tables_in_text(input_text)
+        assert "×" not in result
+        assert "x" in result
+
 
 class TestFormatMarkdownFile:
     def test_rejects_rst_file(self):
@@ -320,5 +433,31 @@ class TestFormatMarkdownFile:
         try:
             result = format_markdown_file(str(path))
             assert "Error" not in result
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_cjk_mode_preserves_ambiguous_in_file(self):
+        content = "| id | char |\n|---|---|\n| 1 | × |\n"
+        with tempfile.NamedTemporaryFile(suffix=".md", mode="w", delete=False, encoding="utf-8") as f:
+            f.write(content)
+            path = pathlib.Path(f.name)
+        try:
+            result = format_markdown_file(str(path), cjk_mode=True)
+            assert "Error" not in result
+            written = path.read_text(encoding="utf-8")
+            assert "×" in written
+        finally:
+            path.unlink(missing_ok=True)
+
+    def test_cjk_mode_default_replaces_in_file(self):
+        content = "| id | char |\n|---|---|\n| 1 | × |\n"
+        with tempfile.NamedTemporaryFile(suffix=".md", mode="w", delete=False, encoding="utf-8") as f:
+            f.write(content)
+            path = pathlib.Path(f.name)
+        try:
+            format_markdown_file(str(path))
+            written = path.read_text(encoding="utf-8")
+            assert "×" not in written
+            assert "x" in written
         finally:
             path.unlink(missing_ok=True)
