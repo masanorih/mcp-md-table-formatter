@@ -13,3 +13,6 @@ __pycache__/
 
 # Claude Code local settings
 .claude/
+
+# Local planning notes (untracked)
+plans/

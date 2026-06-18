@@ -52,36 +52,40 @@ def replace_ambiguous_chars(s: str) -> str:
     return s
 
 
-def display_width(s: str) -> int:
+def display_width(s: str, cjk_mode: bool = False) -> int:
     """文字列の表示幅を計算する
 
     unicodedata.east_asian_width() で判定し、F/W は幅2、それ以外は幅1 とする。
+    cjk_mode=True のときは Ambiguous (A) も幅2 として扱う。
 
     Args:
         s: 対象文字列
+        cjk_mode: CJK ロケール前提モード。Ambiguous を幅2 扱いにする。
     Returns:
         表示幅（int）
     """
+    wide_categories = ("F", "W", "A") if cjk_mode else ("F", "W")
     width = 0
     for ch in s:
         eaw = unicodedata.east_asian_width(ch)
-        width += 2 if eaw in ("F", "W") else 1
+        width += 2 if eaw in wide_categories else 1
     return width
 
 
-def pad(s: str, width: int) -> str:
+def pad(s: str, width: int, cjk_mode: bool = False) -> str:
     """表示幅ベースで右スペースパディングする
 
     Args:
         s: 対象文字列
         width: 目標表示幅
+        cjk_mode: display_width に引き渡す CJK モードフラグ
     Returns:
         右側にスペースを追加した文字列
     """
-    return s + " " * (width - display_width(s))
+    return s + " " * (width - display_width(s, cjk_mode))
 
 
-def format_md_table(text: str) -> str:
+def format_md_table(text: str, cjk_mode: bool = False) -> str:
     """単一 Markdown テーブルの列幅を揃える
 
     パイプ区切りのテーブル文字列をパースし、各列の最大表示幅に合わせて
@@ -89,6 +93,7 @@ def format_md_table(text: str) -> str:
 
     Args:
         text: Markdown テーブル文字列
+        cjk_mode: True で Ambiguous 文字を ASCII 置換せず幅2 として padding
     Returns:
         整形済みテーブル文字列
     """
@@ -112,7 +117,9 @@ def format_md_table(text: str) -> str:
         if i == separator_idx:
             parsed_rows.append([])
             continue
-        cells = [replace_ambiguous_chars(c.strip()) for c in line.strip().strip("|").split("|")]
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if not cjk_mode:
+            cells = [replace_ambiguous_chars(c) for c in cells]
         parsed_rows.append(cells)
 
     # 各列の最大表示幅を算出
@@ -120,7 +127,7 @@ def format_md_table(text: str) -> str:
     col_widths = [0] * num_cols
     for row in parsed_rows:
         for j, cell in enumerate(row):
-            col_widths[j] = max(col_widths[j], display_width(cell))
+            col_widths[j] = max(col_widths[j], display_width(cell, cjk_mode))
 
     # セルをパディングして再構築
     result_lines: list[str] = []
@@ -132,19 +139,20 @@ def format_md_table(text: str) -> str:
             padded = []
             for j in range(num_cols):
                 cell = row[j] if j < len(row) else ""
-                padded.append(pad(cell, col_widths[j]))
+                padded.append(pad(cell, col_widths[j], cjk_mode))
             result_lines.append("| " + " | ".join(padded) + " |")
 
     return "\n".join(result_lines)
 
 
-def format_md_tables_in_text(text: str) -> str:
+def format_md_tables_in_text(text: str, cjk_mode: bool = False) -> str:
     """テキスト内の全 Markdown テーブルを検出して整形する
 
     コードブロック内のテーブルはスキップする。
 
     Args:
         text: Markdown ドキュメント全体の文字列
+        cjk_mode: format_md_table に引き渡す CJK モードフラグ
     Returns:
         テーブル部分のみ整形された文字列
     """
@@ -184,7 +192,7 @@ def format_md_tables_in_text(text: str) -> str:
         # セパレータの有無で実際のテーブルか判定
         has_separator = any(separator_re.match(line) for line in table_lines)
         if has_separator and len(table_lines) >= 2:
-            formatted = format_md_table("\n".join(table_lines))
+            formatted = format_md_table("\n".join(table_lines), cjk_mode)
             result.append(formatted + "\n" if lines[j - 1].endswith("\n") else formatted)
             i = j
         else:
@@ -198,7 +206,7 @@ mcp = FastMCP("md-table-formatter")
 
 
 @mcp.tool()
-def format_markdown_file(file_path: str) -> str:
+def format_markdown_file(file_path: str, cjk_mode: bool = False) -> str:
     """Markdown (.md) ファイル内の全テーブルを整形する
 
     .md ファイルを読み込み、コードブロック外の全テーブルを整形して書き戻す。
@@ -206,6 +214,12 @@ def format_markdown_file(file_path: str) -> str:
 
     Args:
         file_path: Markdown ファイルの絶対パス（.md 拡張子のみ対応）
+        cjk_mode: True で CJK モード。Ambiguous-width 文字 (×, ※, → 等) を
+                  ASCII 置換せず、表示幅2 として padding する。CJK ロケール /
+                  フォントで読まれる前提のドキュメント (×口 や ※注 を含む) 用。
+                  既存挙動 (置換あり・幅1) は False (デフォルト) で維持する。
+                  注意: cjk_mode=True で整形した表は Western フォント表示では
+                  pipe 位置がずれる。可搬性が必要なら False のままにする。
     Returns:
         処理結果のメッセージ
     """
@@ -215,7 +229,7 @@ def format_markdown_file(file_path: str) -> str:
     if not path.is_file():
         return f"Error: file not found: {file_path}"
     content = path.read_text(encoding="utf-8")
-    formatted = format_md_tables_in_text(content)
+    formatted = format_md_tables_in_text(content, cjk_mode)
     if content == formatted:
         return f"No tables to format in {file_path}"
     path.write_text(formatted, encoding="utf-8")
