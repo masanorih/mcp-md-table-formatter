@@ -11,5 +11,8 @@ md-table-formatter = "server:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+[tool.uv]
+package = true
+
 [dependency-groups]
 dev = ["pytest"]
