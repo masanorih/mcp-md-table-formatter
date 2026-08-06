@@ -19,6 +19,10 @@ claude mcp add -s user md-table-formatter -- uvx --from /path/to/mcp-md-table-fo
 
 `/path/to/mcp-md-table-formatter` はこのリポジトリのクローン先パスに置き換えること。
 
+## アップグレード
+
+mcp 1.x 系で導入済みのユーザは [docs/migrate-mcp-2.0.md](docs/migrate-mcp-2.0.md) を参照。
+
 ## テスト
 
 ```bash
