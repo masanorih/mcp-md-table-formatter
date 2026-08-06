@@ -7,7 +7,7 @@ import pathlib
 import re
 import unicodedata
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 
 AMBIGUOUS_CHAR_REPLACEMENTS = {
@@ -202,7 +202,7 @@ def format_md_tables_in_text(text: str, cjk_mode: bool = False) -> str:
     return "".join(result)
 
 
-mcp = FastMCP("md-table-formatter")
+mcp = MCPServer("md-table-formatter")
 
 
 @mcp.tool()

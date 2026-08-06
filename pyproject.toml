@@ -3,7 +3,7 @@ name = "md-table-formatter"
 version = "0.1.0"
 description = "MCP server to format Markdown tables with CJK-aware column alignment"
 requires-python = ">=3.12"
-dependencies = ["mcp"]
+dependencies = ["mcp>=2.0"]
 
 [project.scripts]
 md-table-formatter = "server:main"
