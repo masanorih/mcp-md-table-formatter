@@ -35,6 +35,10 @@ AMBIGUOUS_CHAR_REPLACEMENTS = {
     "※": "*",
 }
 
+# アライメント指定を表現するのに最低限必要なセパレータ幅
+# None: "-" / left: ":-" / right: "-:" / center: ":-:"
+ALIGNMENT_MIN_WIDTHS = {None: 1, "left": 2, "right": 2, "center": 3}
+
 
 def replace_ambiguous_chars(s: str) -> str:
     """East Asian Ambiguous な記号を ASCII 等価物に置換する
@@ -85,6 +89,51 @@ def pad(s: str, width: int, cjk_mode: bool = False) -> str:
     return s + " " * (width - display_width(s, cjk_mode))
 
 
+def parse_alignments(separator_line: str) -> list[str | None]:
+    """セパレータ行から列ごとのアライメント指定を読み取る
+
+    GFM のコロン記法を判定する。":-" は左寄せ、"-:" は右寄せ、
+    ":-:" は中央寄せ、コロンなしは指定なし（None）とする。
+
+    Args:
+        separator_line: テーブルのセパレータ行
+    Returns:
+        列順のアライメント指定リスト（"left"/"right"/"center"/None）
+    """
+    specs = [c.strip() for c in separator_line.strip().strip("|").split("|")]
+    alignments: list[str | None] = []
+    for spec in specs:
+        left = spec.startswith(":")
+        right = spec.endswith(":")
+        if left and right:
+            alignments.append("center")
+        elif left:
+            alignments.append("left")
+        elif right:
+            alignments.append("right")
+        else:
+            alignments.append(None)
+    return alignments
+
+
+def build_separator_cell(alignment: str | None, width: int) -> str:
+    """アライメント指定を保ったままセパレータセルを組み立てる
+
+    Args:
+        alignment: "left"/"right"/"center"/None
+        width: 目標表示幅（ALIGNMENT_MIN_WIDTHS 以上であること）
+    Returns:
+        コロンとハイフンからなる幅 width の文字列
+    """
+    if alignment == "center":
+        return ":" + "-" * (width - 2) + ":"
+    if alignment == "left":
+        return ":" + "-" * (width - 1)
+    if alignment == "right":
+        return "-" * (width - 1) + ":"
+    return "-" * width
+
+
 def format_md_table(text: str, cjk_mode: bool = False) -> str:
     """単一 Markdown テーブルの列幅を揃える
 
@@ -122,6 +171,9 @@ def format_md_table(text: str, cjk_mode: bool = False) -> str:
             cells = [replace_ambiguous_chars(c) for c in cells]
         parsed_rows.append(cells)
 
+    # 元のセパレータ行からアライメント指定を保存
+    alignments = parse_alignments(lines[separator_idx])
+
     # 各列の最大表示幅を算出
     num_cols = max(len(row) for row in parsed_rows if row)
     col_widths = [0] * num_cols
@@ -129,11 +181,18 @@ def format_md_table(text: str, cjk_mode: bool = False) -> str:
         for j, cell in enumerate(row):
             col_widths[j] = max(col_widths[j], display_width(cell, cjk_mode))
 
+    # 列数をアライメント側と揃え、コロンが収まる幅を確保する
+    alignments = (alignments + [None] * num_cols)[:num_cols]
+    for j, alignment in enumerate(alignments):
+        col_widths[j] = max(col_widths[j], ALIGNMENT_MIN_WIDTHS[alignment])
+
     # セルをパディングして再構築
     result_lines: list[str] = []
     for i, row in enumerate(parsed_rows):
         if i == separator_idx:
-            parts = ["-" * w for w in col_widths]
+            parts = [
+                build_separator_cell(a, w) for a, w in zip(alignments, col_widths)
+            ]
             result_lines.append("| " + " | ".join(parts) + " |")
         else:
             padded = []
