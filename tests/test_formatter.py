@@ -278,6 +278,103 @@ class TestFormatMdTable:
         assert "×" not in expected_explicit
 
 
+class TestFormatMdTableAlignment:
+    def test_preserves_left_alignment(self):
+        input_text = textwrap.dedent("""\
+            | Name | Age |
+            | :--- | :--- |
+            | Alice | 30 |""")
+        expected = textwrap.dedent("""\
+            | Name  | Age |
+            | :---- | :-- |
+            | Alice | 30  |""")
+        assert format_md_table(input_text) == expected
+
+    def test_preserves_right_alignment(self):
+        input_text = textwrap.dedent("""\
+            | Name | Age |
+            | ---: | ---: |
+            | Alice | 30 |""")
+        expected = textwrap.dedent("""\
+            | Name  | Age |
+            | ----: | --: |
+            | Alice | 30  |""")
+        assert format_md_table(input_text) == expected
+
+    def test_preserves_center_alignment(self):
+        input_text = textwrap.dedent("""\
+            | Name | Age |
+            | :---: | :---: |
+            | Alice | 30 |""")
+        expected = textwrap.dedent("""\
+            | Name  | Age |
+            | :---: | :-: |
+            | Alice | 30  |""")
+        assert format_md_table(input_text) == expected
+
+    def test_preserves_mixed_alignment(self):
+        input_text = textwrap.dedent("""\
+            | A | 日本語カラム | c |
+            | :- | -: | :-: |
+            | 1 | あいうえお | x |
+            | 22 | か | yy |""")
+        expected = textwrap.dedent("""\
+            | A  | 日本語カラム | c   |
+            | :- | -----------: | :-: |
+            | 1  | あいうえお   | x   |
+            | 22 | か           | yy  |""")
+        assert format_md_table(input_text) == expected
+
+    def test_no_colons_stays_plain(self):
+        # Regression guard: tables without alignment markers keep bare dashes
+        input_text = textwrap.dedent("""\
+            | A | B |
+            |---|---|
+            | x | y |""")
+        expected = textwrap.dedent("""\
+            | A | B |
+            | - | - |
+            | x | y |""")
+        assert format_md_table(input_text) == expected
+
+    def test_center_alignment_widens_narrow_column(self):
+        # ":-:" needs 3 chars, so a width-1 column must widen to 3
+        input_text = textwrap.dedent("""\
+            | A | B |
+            | :-: | :-: |
+            | x | y |""")
+        expected = textwrap.dedent("""\
+            | A   | B   |
+            | :-: | :-: |
+            | x   | y   |""")
+        assert format_md_table(input_text) == expected
+
+    def test_side_alignment_widens_narrow_column(self):
+        # ":-" and "-:" need 2 chars, so a width-1 column must widen to 2
+        input_text = textwrap.dedent("""\
+            | A | B |
+            | :- | -: |
+            | x | y |""")
+        expected = textwrap.dedent("""\
+            | A  | B  |
+            | :- | -: |
+            | x  | y  |""")
+        assert format_md_table(input_text) == expected
+
+    def test_alignment_with_cjk_mode(self):
+        # col1: max("記号"=4, "×"=2) = 4, centered -> ":--:"
+        # col2: max("意味"=4, "不可"=4) = 4, right -> "---:"
+        input_text = textwrap.dedent("""\
+            | 記号 | 意味 |
+            | :-: | ---: |
+            | × | 不可 |""")
+        expected = textwrap.dedent("""\
+            | 記号 | 意味 |
+            | :--: | ---: |
+            | ×   | 不可 |""")
+        assert format_md_table(input_text, cjk_mode=True) == expected
+
+
 class TestFormatMdTablesInText:
     def test_single_table_in_document(self):
         input_text = textwrap.dedent("""\
@@ -300,6 +397,25 @@ class TestFormatMdTablesInText:
             | Alice | 30  |
 
             More text.""")
+        assert format_md_tables_in_text(input_text) == expected
+
+    def test_preserves_alignment_in_document(self):
+        input_text = textwrap.dedent("""\
+            # Doc
+
+            | A | BB |
+            | ---: | :-: |
+            | CCC | D |
+
+            End.""")
+        expected = textwrap.dedent("""\
+            # Doc
+
+            | A   | BB  |
+            | --: | :-: |
+            | CCC | D   |
+
+            End.""")
         assert format_md_tables_in_text(input_text) == expected
 
     def test_multiple_tables_in_document(self):
