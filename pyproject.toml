@@ -8,6 +8,13 @@ dependencies = ["mcp>=2.0"]
 [project.scripts]
 md-table-formatter = "server:main"
 
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["server"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
